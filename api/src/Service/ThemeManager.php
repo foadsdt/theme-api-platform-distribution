@@ -27,4 +27,9 @@ class ThemeManager
 
         $this->em->flush();
     }
+
+    public function getDefaultTheme(): ?Theme
+    {
+        return $this->em->getRepository(Theme::class)->findOneBy(['isDefault' => true]);
+    }
 }

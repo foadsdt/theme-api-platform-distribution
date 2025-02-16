@@ -7,6 +7,8 @@ use App\Exception\ThemeIsDefaultException;
 use App\Exception\ThemeNotFoundException;
 use App\Service\ThemeManager;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ViewEvent;
 use App\Entity\Theme;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -24,7 +26,8 @@ final class ThemeSubscriber implements EventSubscriberInterface
             'kernel.view' => [
                 ['createTheme', EventPriorities::PRE_WRITE],
                 ['updateTheme', EventPriorities::PRE_VALIDATE],
-                ['deleteTheme', EventPriorities::PRE_VALIDATE]
+                ['deleteTheme', EventPriorities::PRE_VALIDATE],
+                ['getDefaultTheme', EventPriorities::PRE_VALIDATE],
             ],
         ];
     }
@@ -91,5 +94,29 @@ final class ThemeSubscriber implements EventSubscriberInterface
             throw new ThemeIsDefaultException('Cannot delete the default theme!');
         }
 
+    }
+
+    /**
+     * @throws ThemeNotFoundException
+     */
+    public function getDefaultTheme(ViewEvent $event)
+    {
+        $request = $event->getRequest();
+
+        if ('GET' !== $request->getMethod() || $request->getPathInfo() !== '/themes/default') {
+            return;
+        }
+
+        $defaultTheme = $this->themeManager->getDefaultTheme();
+
+        if (!$defaultTheme) {
+            throw new ThemeNotFoundException('Default theme not found');
+        }
+
+        $data = $this->serializer->serialize($defaultTheme, 'jsonld');
+
+        $response = new JsonResponse($data, Response::HTTP_OK, [], true);
+
+        $event->setResponse($response);
     }
 }
